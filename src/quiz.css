@@ -1,0 +1,28 @@
+@page { size: A4; margin: 12mm; }
+:root { --green: #0a8a5a; --green-bg: #dff5e9; --line: #dfe3e8; --muted: #666; }
+body { font: 10.5px/1.35 Helvetica, Arial, sans-serif; margin: 0; background: #f2f2f2; color: #111; }
+main { background: #fff; width: 186mm; margin: 16px auto; padding: 12mm; box-sizing: content-box; }
+header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--green); padding-bottom: 4px; margin-bottom: 8px; }
+h1 { color: var(--green); font-size: 18px; margin: 0; letter-spacing: .5px; }
+.sub { margin: 2px 0 0; color: var(--muted); }
+.badge { border: 1px solid var(--green); background: var(--green-bg); color: var(--green); font-weight: bold; padding: 3px 8px; border-radius: 4px; }
+#questions { columns: 2; column-gap: 8px; }
+.q { break-inside: avoid; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; }
+.q h2 { font-size: 11px; margin: 0 0 4px; }
+.num { display: inline-block; background: var(--green); color: #fff; border-radius: 50%; width: 15px; height: 15px; text-align: center; line-height: 15px; font-size: 9px; margin-right: 4px; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; }
+.opts.long { grid-template-columns: 1fr; }
+.opt { display: flex; gap: 4px; align-items: baseline; padding: 1px 3px; border-radius: 3px; }
+.opt.ok { background: var(--green-bg); color: var(--green); font-weight: bold; }
+.dot { flex: none; width: 8px; height: 8px; border: 1px solid #999; border-radius: 50%; cursor: pointer; }
+.opt.ok .dot { background: var(--green); border-color: var(--green); }
+footer { text-align: center; color: #999; border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 4px; font-size: 9px; }
+.toolbar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #222; color: #fff; padding: 8px 16px; font: 13px system-ui; }
+.toolbar button { font: inherit; padding: 6px 14px; background: var(--green); color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+[contenteditable]:focus { outline: 1px dashed var(--green); }
+@media print {
+  body { background: #fff; }
+  .toolbar { display: none; }
+  main { margin: 0; padding: 0; width: auto; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -1,7 +1,17 @@
 <!doctype html>
 <html lang="nl">
 <meta charset="utf-8">
-<label>Gemini API-sleutel <input id="key" type="password" size="40"></label>
+<style>
+  body { font: 14px system-ui; max-width: 480px; padding: 16px; }
+  label { display: block; margin-bottom: 12px; }
+  input { display: block; width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+</style>
+<label>Gemini API-sleutel
+  <input id="key" type="password" placeholder="Maak er een op aistudio.google.com/apikey">
+</label>
+<label>Gemini-model
+  <input id="model" placeholder="gemini-2.5-flash">
+</label>
 <button id="save">Opslaan</button>
 <span id="status"></span>
 <script src="options.js"></script>

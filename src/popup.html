@@ -1,7 +1,14 @@
 <!doctype html>
 <html lang="nl">
 <meta charset="utf-8">
-<style>body { font: 14px system-ui; width: 200px; padding: 8px; } button { width: 100%; padding: 8px; }</style>
+<style>
+  body { font: 14px system-ui; width: 240px; padding: 8px; }
+  button { width: 100%; padding: 8px; font: inherit; }
+  #status { margin: 8px 0 0; color: #555; }
+  a { display: block; margin-top: 8px; }
+</style>
 <button id="toggle">Start opname</button>
+<p id="status"></p>
+<a href="quiz.html" target="_blank">Laatste quiz openen</a>
 <script src="popup.js"></script>
 </html>
