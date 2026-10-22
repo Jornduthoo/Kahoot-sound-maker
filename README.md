@@ -13,6 +13,7 @@ Chrome-extensie (Manifest V3) die van een aflevering van **Karrewiet** (het jeug
 2. Zet **Ontwikkelaarsmodus** aan.
 3. Klik **Uitgepakte extensie laden** en kies deze map.
 4. Open de **Instellingen** (link onderaan de popup) en vul je Gemini API-sleutel in (gratis aan te maken op [aistudio.google.com/apikey](https://aistudio.google.com/apikey)).
+5. Klik **Test API-sleutel** om te controleren of de sleutel en het model werken. Bij een onbekend model toont de test welke modellen je sleutel wel kan gebruiken.
 
 ## Instellingen
 
