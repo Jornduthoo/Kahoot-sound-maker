@@ -5,7 +5,7 @@ Chrome-extensie (Manifest V3) die:
 1. het geluid van het actieve tabblad opneemt;
 2. de opname opslaat als **mp3**;
 3. de audio naar **Gemini** stuurt om er een quiz (vragen + juiste antwoorden) van te maken;
-4. daar een **PDF** van maakt die je meteen in **Karrewiet** kan importeren.
+4. daar een **PDF** van maakt die je meteen in **Kahoot** kan importeren.
 
 ## Status
 
@@ -31,4 +31,4 @@ Skelet. Opnemen van tab-audio werkt (als `.webm`); mp3-conversie, Gemini-koppeli
 
 - [ ] mp3-encoding (bv. met `lamejs`) in het offscreen-document
 - [ ] Audio naar de Gemini API sturen met een prompt voor vragen + antwoorden
-- [ ] PDF genereren (bv. `jsPDF`) in het formaat dat Karrewiet verwacht
+- [ ] PDF genereren (bv. `jsPDF`) met vragen + juiste antwoorden, zodat Kahoot er een quiz uit kan halen

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sound Recorder",
   "version": "0.1.0",
-  "description": "Neem tab-audio op, maak er met Gemini een quiz-PDF van voor Karrewiet.",
+  "description": "Neem tab-audio op, maak er met Gemini een quiz-PDF van voor Kahoot.",
   "permissions": ["tabCapture", "offscreen", "storage", "downloads"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "background": { "service_worker": "src/background.js" },
