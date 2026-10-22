@@ -1,7 +1,7 @@
 // Gedeelde standaardinstellingen voor background, opties en popup.
 const DEFAULT_SETTINGS = {
   geminiApiKey: '',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.8-flash', // valt automatisch terug op het nieuwste flash-model
   muteTab: false,       // tabblad stil tijdens opname (opname gaat gewoon door)
   autoStopMinutes: 0,   // 0 = niet automatisch stoppen
   quality: 'normaal',   // zie QUALITY_PRESETS, enkel voor de gedownloade mp3

@@ -42,6 +42,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       await stop();
     } else if (msg.type === 'status') {
       await setState('processing', msg.text);
+    } else if (msg.type === 'model') {
+      // Het ingestelde model bestond niet meer; onthoud het model dat wel werkte
+      const { settings = {} } = await chrome.storage.local.get('settings');
+      await chrome.storage.local.set({ settings: { ...settings, geminiModel: msg.model } });
     } else if (msg.type === 'mp3') {
       await chrome.downloads.download({ url: msg.url, filename: `karrewiet-${stamp()}.mp3` });
     } else if (msg.type === 'quiz') {

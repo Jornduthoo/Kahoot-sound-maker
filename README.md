@@ -26,7 +26,7 @@ Chrome-extensie (Manifest V3) die van een aflevering van **Karrewiet** (het jeug
 | Stereo | uit (mono) | |
 | Aantal vragen | 10 | |
 | Leerjaar | 6 | Bepaalt de moeilijkheid en de voettekst ("Klas 6") |
-| Gemini-model | `gemini-2.5-flash` | |
+| Gemini-model | `gemini-3.8-flash` | Is het model niet (meer) beschikbaar, dan kiest de extensie zelf het nieuwste flash-model en onthoudt dat |
 
 De kwaliteit geldt enkel voor de gedownloade mp3. Gemini krijgt altijd een compacte spraakversie (32 kbps, 16 kHz mono), zodat ook lange opnames onder de limiet van 20 MB blijven.
 
@@ -49,5 +49,6 @@ De kwaliteit geldt enkel voor de gedownloade mp3. Gemini krijgt altijd een compa
 | `src/popup.*` | Start/stop-knop, status en aftelling |
 | `src/options.*` | Instellingenpagina |
 | `src/settings.js` | Standaardinstellingen en kwaliteitspresets |
+| `src/gemini.js` | Gemini-aanroep met automatische terugval op een beschikbaar model |
 | `src/quiz.*` | Antwoordsleutel (A4, twee kolommen), bewerkbaar en printbaar als PDF |
 | `src/vendor/lame.min.js` | [lamejs](https://github.com/zhuker/lamejs) 1.2.1 voor de mp3-encoding (LGPL-3.0) |

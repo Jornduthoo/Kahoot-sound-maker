@@ -128,23 +128,24 @@ const SCHEMA = {
 };
 
 async function askGemini(mp3, settings) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel}:generateContent`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiApiKey },
-    body: JSON.stringify({
-      contents: [{
-        parts: [
-          { inline_data: { mime_type: 'audio/mp3', data: await toBase64(mp3) } },
-          { text: prompt(settings) }
-        ]
-      }],
-      generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA }
-    })
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(`Gemini: ${body.error?.message ?? res.status}`);
-  return JSON.parse(body.candidates[0].content.parts[0].text);
+  const payload = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: 'audio/mp3', data: await toBase64(mp3) } },
+        { text: prompt(settings) }
+      ]
+    }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA }
+  };
+  try {
+    const { text, model } = await generateWithFallback(settings.geminiApiKey, settings.geminiModel, payload);
+    if (model !== settings.geminiModel) {
+      chrome.runtime.sendMessage({ target: 'background', type: 'model', model });
+    }
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error(`Gemini: ${err.message}`);
+  }
 }
 
 function toBase64(blob) {
