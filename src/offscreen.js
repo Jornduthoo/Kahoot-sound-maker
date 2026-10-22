@@ -1,38 +1,51 @@
 // Het offscreen-document doet het zware werk: opnemen, mp3 maken en Gemini aanroepen.
-// Het heeft enkel toegang tot chrome.runtime, dus de API-sleutel komt mee met het stop-bericht.
+// Het heeft enkel toegang tot chrome.runtime, dus de instellingen komen mee met de berichten.
 
-const SAMPLE_RATE = 16000; // spraak: 16 kHz mono is ruim genoeg en houdt de mp3 klein
-const KBPS = 48;
+// Gemini krijgt altijd een compacte spraakversie, zodat ook lange opnames onder de
+// limiet van 20 MB voor inline audio blijven, los van de kwaliteit van de download.
+const GEMINI_AUDIO = { sampleRate: 16000, bitrate: 32, stereo: false };
 
 let recorder;
 let chunks = [];
 let playback;
+let autoStopTimer;
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.target !== 'offscreen') return;
-  if (msg.type === 'start') start(msg.streamId).catch(fail);
+  if (msg.type === 'start') start(msg.streamId, msg.settings).catch(fail);
   else if (msg.type === 'stop') stop(msg.settings);
 });
 
-async function start(streamId) {
+async function start(streamId, settings) {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: streamId } }
   });
-  // Geluid blijft hoorbaar voor de gebruiker tijdens het opnemen
-  playback = new AudioContext();
-  playback.createMediaStreamSource(stream).connect(playback.destination);
+  // Chrome dempt een opgenomen tabblad; we sturen het geluid terug naar de luidsprekers
+  // tenzij de gebruiker het tabblad stil wil tijdens de opname.
+  if (!settings.muteTab) {
+    playback = new AudioContext();
+    playback.createMediaStreamSource(stream).connect(playback.destination);
+  }
 
   chunks = [];
-  recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+  recorder = new MediaRecorder(stream, { mimeType: 'audio/webm', audioBitsPerSecond: 256000 });
   recorder.ondataavailable = (e) => chunks.push(e.data);
   recorder.start(1000);
+
+  if (settings.autoStopMinutes > 0) {
+    autoStopTimer = setTimeout(() => {
+      chrome.runtime.sendMessage({ target: 'background', type: 'autostop' });
+    }, settings.autoStopMinutes * 60000);
+  }
 }
 
 function stop(settings) {
-  if (!recorder) return;
+  clearTimeout(autoStopTimer);
+  if (!recorder || recorder.state === 'inactive') return;
   recorder.onstop = () => {
     recorder.stream.getTracks().forEach((t) => t.stop());
     playback?.close();
+    playback = null;
     process(new Blob(chunks, { type: 'audio/webm' }), settings).catch(fail);
   };
   recorder.stop();
@@ -40,46 +53,55 @@ function stop(settings) {
 
 async function process(webm, settings) {
   status('mp3 maken…');
-  const mp3 = await toMp3(webm);
-  chrome.runtime.sendMessage({ target: 'background', type: 'mp3', url: URL.createObjectURL(mp3) });
+  const decoded = await new AudioContext().decodeAudioData(await webm.arrayBuffer());
 
-  if (!settings.apiKey) throw new Error('Geen Gemini API-sleutel ingesteld (zie Opties).');
+  if (settings.downloadMp3) {
+    const mp3 = await toMp3(decoded, settings);
+    chrome.runtime.sendMessage({ target: 'background', type: 'mp3', url: URL.createObjectURL(mp3) });
+  }
+
+  if (!settings.geminiApiKey) throw new Error('Geen Gemini API-sleutel ingesteld (zie Opties).');
   status('Gemini maakt de vragen…');
-  const quiz = await askGemini(mp3, settings);
+  const quiz = await askGemini(await toMp3(decoded, GEMINI_AUDIO), settings);
+  quiz.klas = settings.grade;
   chrome.runtime.sendMessage({ target: 'background', type: 'quiz', quiz });
 }
 
-async function toMp3(blob) {
-  const decoded = await new AudioContext().decodeAudioData(await blob.arrayBuffer());
-  // Downmixen naar mono en herbemonsteren naar SAMPLE_RATE
-  const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * SAMPLE_RATE), SAMPLE_RATE);
+async function toMp3(decoded, { sampleRate, bitrate, stereo }) {
+  const channels = stereo && decoded.numberOfChannels > 1 ? 2 : 1;
+  const offline = new OfflineAudioContext(channels, Math.ceil(decoded.duration * sampleRate), sampleRate);
   const src = offline.createBufferSource();
   src.buffer = decoded;
   src.connect(offline.destination);
   src.start();
-  const samples = (await offline.startRendering()).getChannelData(0);
+  const rendered = await offline.startRendering();
+  const pcm = Array.from({ length: channels }, (_, c) => toInt16(rendered.getChannelData(c)));
 
-  const pcm = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    pcm[i] = Math.max(-1, Math.min(1, samples[i])) * 0x7fff;
-  }
-
-  const encoder = new lamejs.Mp3Encoder(1, SAMPLE_RATE, KBPS);
+  const encoder = new lamejs.Mp3Encoder(channels, sampleRate, bitrate);
   const parts = [];
-  for (let i = 0; i < pcm.length; i += 1152) {
-    const buf = encoder.encodeBuffer(pcm.subarray(i, i + 1152));
+  for (let i = 0; i < pcm[0].length; i += 1152) {
+    const frame = pcm.map((ch) => ch.subarray(i, i + 1152));
+    const buf = encoder.encodeBuffer(...frame);
     if (buf.length) parts.push(buf);
   }
   parts.push(encoder.flush());
   return new Blob(parts, { type: 'audio/mpeg' });
 }
 
-const PROMPT = `Je krijgt de audio van een aflevering van Karrewiet, het jeugdjournaal van Ketnet/VRT.
-Maak een quiz voor leerlingen van het 6de leerjaar met precies 10 meerkeuzevragen over deze aflevering.
+function toInt16(samples) {
+  const pcm = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    pcm[i] = Math.max(-1, Math.min(1, samples[i])) * 0x7fff;
+  }
+  return pcm;
+}
+
+const prompt = ({ numQuestions, grade }) => `Je krijgt de audio van een aflevering van Karrewiet, het jeugdjournaal van Ketnet/VRT.
+Maak een quiz voor leerlingen van het ${grade}de leerjaar met precies ${numQuestions} meerkeuzevragen over deze aflevering.
 
 Regels:
 - Vraag 1 is altijd "Wie presenteert deze aflevering van Karrewiet?" met de opties Jensen, Jelle, Maurane, Aïda.
-- Als het weerbericht een temperatuur voor morgen noemt, is vraag 10 "Hoeveel graden wordt het morgen volgens het weerbericht?".
+- Als het weerbericht een temperatuur voor morgen noemt, is de laatste vraag "Hoeveel graden wordt het morgen volgens het weerbericht?".
 - De andere vragen volgen de nieuwsitems in volgorde van de uitzending.
 - Elke vraag heeft precies 4 korte, geloofwaardige antwoordopties; precies één is juist en moet letterlijk uit de audio blijken.
 - Schrijf in eenvoudig, correct Nederlands (Vlaams), zonder letters A) B) voor de opties.
@@ -105,16 +127,16 @@ const SCHEMA = {
   required: ['vragen']
 };
 
-async function askGemini(mp3, { apiKey, model }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+async function askGemini(mp3, settings) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel}:generateContent`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiApiKey },
     body: JSON.stringify({
       contents: [{
         parts: [
           { inline_data: { mime_type: 'audio/mp3', data: await toBase64(mp3) } },
-          { text: PROMPT }
+          { text: prompt(settings) }
         ]
       }],
       generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA }

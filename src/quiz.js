@@ -8,11 +8,11 @@ chrome.storage.local.get('lastQuiz').then(({ lastQuiz }) => {
   render(lastQuiz);
 });
 
-function render({ datum, vragen }) {
+function render({ datum, vragen, klas }) {
   const dag = datum ? ` (${datum})` : '';
   document.getElementById('sub').textContent = `${vragen.length} actua-vragen${dag} • Correcte antwoorden aangeduid`;
   document.getElementById('footer').textContent =
-    ['Karrewiet Actua-Quiz', datum, 'Klas 6', 'Antwoordsleutel'].filter(Boolean).join(' • ');
+    ['Karrewiet Actua-Quiz', datum, `Klas ${klas ?? 6}`, 'Antwoordsleutel'].filter(Boolean).join(' • ');
   if (datum) document.title = `karrewiet_quiz_${datum.replace(/\s+/g, '_')}_antwoordsleutel`;
 
   const container = document.getElementById('questions');

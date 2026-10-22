@@ -1,12 +1,27 @@
-const key = document.getElementById('key');
-const model = document.getElementById('model');
+const form = document.getElementById('form');
+const quality = document.getElementById('quality');
 
-chrome.storage.local.get(['geminiApiKey', 'geminiModel']).then(({ geminiApiKey, geminiModel }) => {
-  key.value = geminiApiKey ?? '';
-  model.value = geminiModel ?? '';
+for (const [value, { label }] of Object.entries(QUALITY_PRESETS)) {
+  quality.add(new Option(label, value));
+}
+
+loadSettings().then((settings) => {
+  for (const el of form.elements) {
+    if (!(el.name in DEFAULT_SETTINGS)) continue;
+    if (el.type === 'checkbox') el.checked = settings[el.name];
+    else el.value = settings[el.name];
+  }
 });
 
-document.getElementById('save').addEventListener('click', async () => {
-  await chrome.storage.local.set({ geminiApiKey: key.value.trim(), geminiModel: model.value.trim() });
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const settings = {};
+  for (const el of form.elements) {
+    if (!(el.name in DEFAULT_SETTINGS)) continue;
+    if (el.type === 'checkbox') settings[el.name] = el.checked;
+    else if (el.type === 'number') settings[el.name] = Number(el.value) || DEFAULT_SETTINGS[el.name];
+    else settings[el.name] = el.value.trim() || DEFAULT_SETTINGS[el.name];
+  }
+  await chrome.storage.local.set({ settings });
   document.getElementById('status').textContent = 'Opgeslagen';
 });

@@ -1,18 +1,57 @@
 <!doctype html>
 <html lang="nl">
 <meta charset="utf-8">
+<title>Kahoot Sound Maker – Opties</title>
 <style>
-  body { font: 14px system-ui; max-width: 480px; padding: 16px; }
-  label { display: block; margin-bottom: 12px; }
-  input { display: block; width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+  body { font: 14px system-ui; max-width: 520px; padding: 16px; }
+  fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 16px; padding: 8px 12px 12px; }
+  legend { font-weight: bold; padding: 0 4px; }
+  label { display: block; margin-top: 10px; }
+  label.check { display: flex; gap: 6px; align-items: center; }
+  input:not([type=checkbox]), select { display: block; width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; font: inherit; }
+  small { color: #666; }
+  button { padding: 8px 16px; font: inherit; }
 </style>
-<label>Gemini API-sleutel
-  <input id="key" type="password" placeholder="Maak er een op aistudio.google.com/apikey">
-</label>
-<label>Gemini-model
-  <input id="model" placeholder="gemini-2.5-flash">
-</label>
-<button id="save">Opslaan</button>
-<span id="status"></span>
+<form id="form">
+  <fieldset>
+    <legend>Opname</legend>
+    <label class="check"><input type="checkbox" name="muteTab"> Tabblad dempen tijdens de opname</label>
+    <small>De opname gaat gewoon door, je hoort het geluid alleen zelf niet.</small>
+    <label>Automatisch stoppen na (minuten)
+      <input type="number" name="autoStopMinutes" min="0" max="180" step="1">
+      <small>0 = niet automatisch stoppen. Een aflevering van Karrewiet duurt ongeveer 10 minuten.</small>
+    </label>
+  </fieldset>
+  <fieldset>
+    <legend>mp3</legend>
+    <label class="check"><input type="checkbox" name="downloadMp3"> mp3 downloaden na de opname</label>
+    <label>Kwaliteit
+      <select name="quality" id="quality"></select>
+    </label>
+    <label class="check"><input type="checkbox" name="stereo"> Stereo (standaard mono)</label>
+    <small>Gemini krijgt altijd een compacte spraakversie, dus de kwaliteit hier heeft geen invloed op de quiz.</small>
+  </fieldset>
+  <fieldset>
+    <legend>Quiz</legend>
+    <label>Aantal vragen
+      <input type="number" name="numQuestions" min="3" max="30" step="1">
+    </label>
+    <label>Leerjaar
+      <input type="number" name="grade" min="1" max="6" step="1">
+    </label>
+  </fieldset>
+  <fieldset>
+    <legend>Gemini</legend>
+    <label>API-sleutel
+      <input type="password" name="geminiApiKey" placeholder="Maak er een op aistudio.google.com/apikey">
+    </label>
+    <label>Model
+      <input name="geminiModel">
+    </label>
+  </fieldset>
+  <button type="submit">Opslaan</button>
+  <span id="status"></span>
+</form>
+<script src="settings.js"></script>
 <script src="options.js"></script>
 </html>

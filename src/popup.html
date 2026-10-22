@@ -5,10 +5,15 @@
   body { font: 14px system-ui; width: 240px; padding: 8px; }
   button { width: 100%; padding: 8px; font: inherit; }
   #status { margin: 8px 0 0; color: #555; }
-  a { display: block; margin-top: 8px; }
+  #timer { font-variant-numeric: tabular-nums; font-weight: bold; }
+  nav { display: flex; justify-content: space-between; margin-top: 8px; }
 </style>
 <button id="toggle">Start opname</button>
 <p id="status"></p>
-<a href="quiz.html" target="_blank">Laatste quiz openen</a>
+<p id="timer"></p>
+<nav>
+  <a href="quiz.html" target="_blank">Laatste quiz</a>
+  <a href="options.html" target="_blank">Instellingen</a>
+</nav>
 <script src="popup.js"></script>
 </html>

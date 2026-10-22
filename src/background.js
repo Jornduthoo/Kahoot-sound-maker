@@ -1,5 +1,6 @@
+importScripts('settings.js');
+
 const OFFSCREEN_URL = 'src/offscreen.html';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 async function ensureOffscreen() {
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
@@ -11,31 +12,34 @@ async function ensureOffscreen() {
   });
 }
 
-function setState(state, text = '') {
-  return chrome.storage.session.set({ state, statusText: text });
+function setState(state, text = '', extra = {}) {
+  return chrome.storage.session.set({ state, statusText: text, endsAt: null, ...extra });
 }
 
 function stamp() {
   return new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
 }
 
+async function stop() {
+  const { state } = await chrome.storage.session.get('state');
+  if (state !== 'recording') return;
+  await setState('processing', 'Opname verwerken…');
+  await chrome.runtime.sendMessage({ target: 'offscreen', type: 'stop', settings: await loadSettings() });
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.target !== 'background') return;
   (async () => {
     if (msg.type === 'start') {
+      const settings = await loadSettings();
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
       await ensureOffscreen();
-      await chrome.runtime.sendMessage({ target: 'offscreen', type: 'start', streamId });
-      await setState('recording', 'Bezig met opnemen…');
-    } else if (msg.type === 'stop') {
-      const { geminiApiKey, geminiModel } = await chrome.storage.local.get(['geminiApiKey', 'geminiModel']);
-      await setState('processing', 'Opname verwerken…');
-      await chrome.runtime.sendMessage({
-        target: 'offscreen',
-        type: 'stop',
-        settings: { apiKey: geminiApiKey, model: geminiModel || DEFAULT_MODEL }
-      });
+      await chrome.runtime.sendMessage({ target: 'offscreen', type: 'start', streamId, settings });
+      const endsAt = settings.autoStopMinutes > 0 ? Date.now() + settings.autoStopMinutes * 60000 : null;
+      await setState('recording', settings.muteTab ? 'Bezig met opnemen (tabblad gedempt)…' : 'Bezig met opnemen…', { endsAt });
+    } else if (msg.type === 'stop' || msg.type === 'autostop') {
+      await stop();
     } else if (msg.type === 'status') {
       await setState('processing', msg.text);
     } else if (msg.type === 'mp3') {
@@ -44,10 +48,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       await chrome.storage.local.set({ lastQuiz: msg.quiz });
       await setState('idle', 'Klaar! De quiz staat open in een nieuw tabblad.');
       await chrome.tabs.create({ url: 'src/quiz.html' });
-      await chrome.offscreen.closeDocument();
     } else if (msg.type === 'error') {
       await setState('idle', `Fout: ${msg.text}`);
-      await chrome.offscreen.closeDocument().catch(() => {});
     }
     sendResponse({ ok: true });
   })();
