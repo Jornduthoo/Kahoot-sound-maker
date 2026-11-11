@@ -1,19 +1,85 @@
 <!doctype html>
 <html lang="nl">
+<head>
 <meta charset="utf-8">
-<style>
-  body { font: 14px system-ui; width: 240px; padding: 8px; }
-  button { width: 100%; padding: 8px; font: inherit; }
-  #status { margin: 8px 0 0; color: #555; }
-  #timer { font-variant-numeric: tabular-nums; font-weight: bold; }
-  nav { display: flex; justify-content: space-between; margin-top: 8px; }
-</style>
-<button id="toggle">Start opname</button>
-<p id="status"></p>
-<p id="timer"></p>
-<nav>
-  <a href="quiz.html" target="_blank">Laatste quiz</a>
-  <a href="options.html" target="_blank">Instellingen</a>
+<title>Sound Recorder</title>
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="../icons/icon-32.png" alt="" width="24" height="24">
+    <h1>Sound Recorder</h1>
+  </div>
+  <a class="icon-btn" href="library.html" target="_blank" title="Mijn opnames" data-icon="library"></a>
+  <a class="icon-btn" href="options.html" target="_blank" title="Instellingen" data-icon="settings"></a>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-record" aria-selected="true"><span data-icon="mic"></span>Opnemen</button>
+  <button role="tab" id="tab-media" aria-selected="false"><span data-icon="video"></span>Media op pagina <span id="mediaCount" class="badge hidden"></span></button>
 </nav>
+
+<main>
+  <section id="panel-record">
+    <div class="card recorder" id="recorder">
+      <button id="recButton" class="rec-button" title="Opname starten"><span data-icon="mic"></span></button>
+      <div class="rec-info">
+        <div id="timer" class="timer">0:00</div>
+        <div id="state" class="muted small">Klaar om het geluid van dit tabblad op te nemen</div>
+        <div class="meter" aria-hidden="true"><div id="level"></div></div>
+      </div>
+      <div class="rec-controls hidden" id="recControls">
+        <button class="btn icon-only" id="pauseButton" title="Pauzeren"><span data-icon="pause"></span></button>
+        <button class="btn danger" id="stopButton"><span data-icon="stop"></span>Stop</button>
+      </div>
+    </div>
+
+    <div class="card busy hidden" id="busy">
+      <div class="busy-row"><span data-icon="refresh" class="spin"></span><span id="busyText">Bezig…</span><span id="busyPercent" class="muted"></span></div>
+      <div class="progress" id="busyProgress"><div></div></div>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="card quick" id="quick">
+      <div class="quick-row column">
+        <div class="quick-label"><span data-icon="zap"></span>Snelheid
+          <span class="muted small" id="speedHint">normaal afspelen</span></div>
+        <div class="segmented" id="speed"></div>
+      </div>
+      <label class="quick-row"><span data-icon="mute"></span><span class="grow">Tabblad dempen</span>
+        <span class="switch"><input type="checkbox" data-setting="muteTab"><span></span></span></label>
+      <label class="quick-row"><span data-icon="restart"></span><span class="grow">Video vanaf het begin afspelen</span>
+        <span class="switch"><input type="checkbox" data-setting="restartMedia"><span></span></span></label>
+      <label class="quick-row"><span data-icon="flag"></span><span class="grow">Stoppen als de video eindigt</span>
+        <span class="switch"><input type="checkbox" data-setting="stopWhenMediaEnds"><span></span></span></label>
+    </div>
+  </section>
+
+  <section id="panel-media" class="hidden">
+    <div id="drmNotice" class="notice hidden"><span data-icon="lock"></span>
+      <div><b>Deze pagina gebruikt beveiligde video (DRM)</b>, zoals VRT MAX. Die video's kan je niet rechtstreeks
+        downloaden. Gebruik <b>Opnemen</b>: met snelheid 2× is een aflevering van 10 minuten in 5 minuten binnen.</div>
+    </div>
+    <ul id="mediaList" class="media-list"></ul>
+    <div id="mediaEmpty" class="empty hidden">
+      <span data-icon="search"></span>
+      <p><b>Nog geen media gevonden</b><br>
+        <span class="muted">Start de video of audio op de pagina even, dan verschijnt hij hier. Bestanden die al geladen waren, zie je pas na het herladen van de pagina.</span></p>
+    </div>
+    <button class="btn" id="rescan"><span data-icon="refresh"></span>Opnieuw zoeken</button>
+  </section>
+</main>
+
+<footer class="foot muted small">
+  <span data-icon="keyboard"></span><span id="shortcut">Sneltoets: Alt+Shift+R</span>
+</footer>
+
+<script src="settings.js"></script>
+<script src="icons.js"></script>
+<script src="media.js"></script>
 <script src="popup.js"></script>
+</body>
 </html>

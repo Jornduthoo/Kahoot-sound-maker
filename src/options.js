@@ -1,59 +1,72 @@
 const form = document.getElementById('form');
-const quality = document.getElementById('quality');
+let settings;
+let toastTimer;
 
-for (const [value, { label }] of Object.entries(QUALITY_PRESETS)) {
-  quality.add(new Option(label, value));
+function toast() {
+  const el = document.getElementById('toast');
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1400);
 }
 
-loadSettings().then((settings) => {
+async function save(changes) {
+  settings = await saveSettings(changes);
+  render();
+  toast();
+}
+
+function segmented(container, options, current, onPick) {
+  container.innerHTML = '';
+  for (const [value, label] of options) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.setAttribute('aria-pressed', String(value === current));
+    b.onclick = () => onPick(value);
+    container.append(b);
+  }
+}
+
+function render() {
   for (const el of form.elements) {
     if (!(el.name in DEFAULT_SETTINGS)) continue;
-    if (el.type === 'checkbox') el.checked = settings[el.name];
+    if (el === document.activeElement && el.type !== 'checkbox') continue;
+    if (el.type === 'checkbox') el.checked = !!settings[el.name];
     else el.value = settings[el.name];
   }
-});
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const settings = {};
-  for (const el of form.elements) {
-    if (!(el.name in DEFAULT_SETTINGS)) continue;
-    if (el.type === 'checkbox') settings[el.name] = el.checked;
-    else if (el.type === 'number') settings[el.name] = Number(el.value) || DEFAULT_SETTINGS[el.name];
-    else settings[el.name] = el.value.trim() || DEFAULT_SETTINGS[el.name];
-  }
-  await chrome.storage.local.set({ settings });
-  document.getElementById('status').textContent = 'Opgeslagen';
-});
-
-const testResult = document.getElementById('testResult');
-
-// Test met de ingevulde waarden, ook als ze nog niet opgeslagen zijn
-document.getElementById('test').addEventListener('click', async () => {
-  const key = form.elements.geminiApiKey.value.trim();
-  const requested = form.elements.geminiModel.value.trim() || DEFAULT_SETTINGS.geminiModel;
-  showResult('', 'Bezig met testen…');
-  if (!key) return showResult('err', '✗ Vul eerst een API-sleutel in.');
-
-  try {
-    const { text, model } = await generateWithFallback(key, requested, {
-      contents: [{ parts: [{ text: 'Antwoord enkel met: OK' }] }]
-    });
-    let message = `✓ De sleutel werkt met ${model}. Gemini antwoordde: "${text.trim()}"`;
-    if (model !== requested) {
-      form.elements.geminiModel.value = model;
-      form.requestSubmit();
-      message = `✓ ${requested} is niet meer beschikbaar, dus de extensie gebruikt nu ${model} (opgeslagen).\n` +
-        `Gemini antwoordde: "${text.trim()}"`;
-    }
-    showResult('ok', message);
-  } catch (err) {
-    const prefix = err instanceof GeminiError ? `${err.status}: ` : 'Geen verbinding met Gemini: ';
-    showResult('err', `✗ ${prefix}${err.message}`);
-  }
-});
-
-function showResult(kind, text) {
-  testResult.className = kind;
-  testResult.textContent = text;
+  segmented(document.getElementById('speed'), SPEEDS.map((s) => [s, `${String(s).replace('.', ',')}×`]),
+    Number(settings.speed), (speed) => save({ speed }));
+  segmented(document.getElementById('format'), [['mp3', 'mp3'], ['wav', 'wav']],
+    settings.format, (format) => save({ format }));
+  document.getElementById('qualityRow').classList.toggle('hidden', settings.format === 'wav');
+  document.getElementById('namePreview').textContent = `${buildFileName(form.elements.fileNameTemplate.value, {
+    title: 'Karrewiet van 10 november', url: 'https://www.vrt.be/vrtmax/'
+  })}.${settings.format}`;
 }
+
+const quality = document.getElementById('quality');
+for (const [value, { label }] of Object.entries(QUALITY_PRESETS)) quality.add(new Option(label, value));
+
+form.addEventListener('change', (e) => {
+  const el = e.target;
+  if (!(el.name in DEFAULT_SETTINGS)) return;
+  let value = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.type === 'number') value = Math.max(0, Math.round(Number(el.value) || 0));
+  if (el.name === 'fileNameTemplate') value = el.value.trim() || DEFAULT_SETTINGS.fileNameTemplate;
+  save({ [el.name]: value });
+});
+form.elements.fileNameTemplate.addEventListener('input', render);
+form.addEventListener('submit', (e) => e.preventDefault());
+
+document.getElementById('shortcuts').onclick = () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+chrome.commands.getAll().then((commands) => {
+  const shortcut = commands.find((c) => c.name === 'toggle-recording')?.shortcut;
+  document.getElementById('shortcut').textContent = shortcut
+    ? `Nu: ${shortcut}. Werkt op elke pagina, ook zonder de popup te openen.`
+    : 'Nog geen sneltoets ingesteld.';
+});
+
+loadSettings().then((s) => {
+  settings = s;
+  render();
+});

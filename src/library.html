@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mijn opnames – Sound Recorder</title>
+<link rel="icon" href="../icons/icon-32.png">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <img src="../icons/icon-128.png" alt="" width="44" height="44">
+    <div class="grow">
+      <h1>Mijn opnames</h1>
+      <p class="muted" id="summary">Laden…</p>
+    </div>
+    <a class="btn" href="options.html"><span data-icon="settings"></span>Instellingen</a>
+  </header>
+
+  <div class="toolbar">
+    <label class="search"><span data-icon="search"></span>
+      <input type="search" id="search" placeholder="Zoeken op naam of website"></label>
+    <button class="btn danger" id="clearAll"><span data-icon="trash"></span>Alles wissen</button>
+  </div>
+
+  <ul class="rec-list" id="list"></ul>
+  <div class="empty-state hidden" id="empty">
+    <span data-icon="wave"></span>
+    <h2>Nog geen opnames</h2>
+    <p class="muted">Klik op het icoon van Sound Recorder in de werkbalk en start een opname, of haal de audio uit een video via <b>Media op pagina</b>.</p>
+  </div>
+</div>
+<script src="settings.js"></script>
+<script src="icons.js"></script>
+<script src="db.js"></script>
+<script src="library.js"></script>
+</body>
+</html>

@@ -1,11 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Sound Recorder",
-  "version": "0.1.0",
-  "description": "Neem tab-audio op, maak er met Gemini een quiz-PDF van voor Kahoot.",
-  "permissions": ["tabCapture", "offscreen", "storage", "downloads"],
-  "host_permissions": ["https://generativelanguage.googleapis.com/*"],
+  "version": "1.0.0",
+  "description": "Neem het geluid van een tabblad op, of haal de audio rechtstreeks uit video's en audio op een pagina. Als mp3 of wav.",
+  "permissions": ["tabCapture", "offscreen", "storage", "unlimitedStorage", "downloads", "scripting", "activeTab", "webRequest", "alarms"],
+  "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "src/background.js" },
-  "action": { "default_popup": "src/popup.html", "default_title": "Sound Recorder" },
-  "options_page": "src/options.html"
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Sound Recorder",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "options_page": "src/options.html",
+  "commands": {
+    "toggle-recording": {
+      "suggested_key": { "default": "Alt+Shift+R" },
+      "description": "Opname starten of stoppen"
+    }
+  }
 }
