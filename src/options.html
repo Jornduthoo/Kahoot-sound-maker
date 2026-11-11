@@ -1,63 +1,93 @@
 <!doctype html>
 <html lang="nl">
+<head>
 <meta charset="utf-8">
-<title>Kahoot Sound Maker – Opties</title>
-<style>
-  body { font: 14px system-ui; max-width: 520px; padding: 16px; }
-  fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 16px; padding: 8px 12px 12px; }
-  legend { font-weight: bold; padding: 0 4px; }
-  label { display: block; margin-top: 10px; }
-  label.check { display: flex; gap: 6px; align-items: center; }
-  input:not([type=checkbox]), select { display: block; width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; font: inherit; }
-  small { color: #666; }
-  button { padding: 8px 16px; font: inherit; }
-  #testResult { white-space: pre-wrap; margin: 0; }
-  #testResult.ok { color: #0a8a5a; }
-  #testResult.err { color: #c0392b; }
-</style>
-<form id="form">
-  <fieldset>
-    <legend>Opname</legend>
-    <label class="check"><input type="checkbox" name="muteTab"> Tabblad dempen tijdens de opname</label>
-    <small>De opname gaat gewoon door, je hoort het geluid alleen zelf niet.</small>
-    <label>Automatisch stoppen na (minuten)
-      <input type="number" name="autoStopMinutes" min="0" max="180" step="1">
-      <small>0 = niet automatisch stoppen. Een aflevering van Karrewiet duurt ongeveer 10 minuten.</small>
-    </label>
-  </fieldset>
-  <fieldset>
-    <legend>mp3</legend>
-    <label class="check"><input type="checkbox" name="downloadMp3"> mp3 downloaden na de opname</label>
-    <label>Kwaliteit
-      <select name="quality" id="quality"></select>
-    </label>
-    <label class="check"><input type="checkbox" name="stereo"> Stereo (standaard mono)</label>
-    <small>Gemini krijgt altijd een compacte spraakversie, dus de kwaliteit hier heeft geen invloed op de quiz.</small>
-  </fieldset>
-  <fieldset>
-    <legend>Quiz</legend>
-    <label>Aantal vragen
-      <input type="number" name="numQuestions" min="3" max="30" step="1">
-    </label>
-    <label>Leerjaar
-      <input type="number" name="grade" min="1" max="6" step="1">
-    </label>
-  </fieldset>
-  <fieldset>
-    <legend>Gemini</legend>
-    <label>API-sleutel
-      <input type="password" name="geminiApiKey" placeholder="Maak er een op aistudio.google.com/apikey">
-    </label>
-    <label>Model
-      <input name="geminiModel">
-    </label>
-    <p><button type="button" id="test">Test API-sleutel</button></p>
-    <p id="testResult" role="status"></p>
-  </fieldset>
-  <button type="submit">Opslaan</button>
-  <span id="status"></span>
-</form>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instellingen – Sound Recorder</title>
+<link rel="icon" href="../icons/icon-32.png">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="pages.css">
+</head>
+<body>
+<div class="page narrow">
+  <header class="page-head">
+    <img src="../icons/icon-128.png" alt="" width="44" height="44">
+    <div class="grow">
+      <h1>Instellingen</h1>
+      <p class="muted">Wijzigingen worden meteen bewaard.</p>
+    </div>
+    <a class="btn" href="library.html"><span data-icon="library"></span>Mijn opnames</a>
+  </header>
+
+  <form id="form">
+    <section class="card group">
+      <h2><span data-icon="mic"></span>Opnemen</h2>
+      <label class="row"><div class="grow"><b>Tabblad dempen tijdens de opname</b>
+          <p class="muted small">De opname gaat gewoon door, je hoort het geluid alleen zelf niet.</p></div>
+        <span class="switch"><input type="checkbox" name="muteTab"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Stoppen als de video of audio eindigt</b>
+          <p class="muted small">Handig om een aflevering op te nemen zonder erbij te blijven.</p></div>
+        <span class="switch"><input type="checkbox" name="stopWhenMediaEnds"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Video vanaf het begin afspelen</b>
+          <p class="muted small">Bij de start springt de video op de pagina naar 0:00 en begint hij te spelen.</p></div>
+        <span class="switch"><input type="checkbox" name="restartMedia"><span></span></span></label>
+      <div class="row column"><div><b>Snelheid tijdens de opname</b>
+          <p class="muted small">De video speelt versneld af en de extensie draait dat achteraf exact terug, zodat de opname normaal klinkt.
+            Tijdens een versnelde opname is het tabblad altijd stil. 2× is bijna verliesvrij; bij 3× en 4× klinkt het geluid wat doffer (geschikt voor spraak).
+            Werkt niet als de website het afspeeltempo zelf vastzet.</p></div>
+        <div class="segmented" id="speed"></div></div>
+      <label class="row"><div class="grow"><b>Automatisch stoppen na</b>
+          <p class="muted small">Minuten opnametijd. 0 = niet automatisch stoppen.</p></div>
+        <input type="number" name="autoStopMinutes" min="0" max="600" step="1" class="short"></label>
+    </section>
+
+    <section class="card group">
+      <h2><span data-icon="music"></span>Bestand</h2>
+      <div class="row"><div class="grow"><b>Formaat</b>
+          <p class="muted small">mp3 is klein en werkt overal; wav is onverkleind (groot).</p></div>
+        <div class="segmented fixed" id="format"></div></div>
+      <label class="row" id="qualityRow"><div class="grow"><b>mp3-kwaliteit</b></div>
+        <select name="quality" id="quality"></select></label>
+      <label class="row"><div class="grow"><b>Stereo</b>
+          <p class="muted small">Uit = mono, half zo groot. Voor spraak is mono genoeg.</p></div>
+        <span class="switch"><input type="checkbox" name="stereo"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Stilte aan begin en einde wegknippen</b></div>
+        <span class="switch"><input type="checkbox" name="trimSilence"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Volume gelijktrekken</b>
+          <p class="muted small">Maakt stille opnames luider, tot net onder het maximum.</p></div>
+        <span class="switch"><input type="checkbox" name="normalize"><span></span></span></label>
+      <label class="row column"><div><b>Bestandsnaam</b>
+          <p class="muted small">Gebruik <code>{titel}</code>, <code>{site}</code>, <code>{datum}</code> en <code>{tijd}</code>.</p></div>
+        <input type="text" name="fileNameTemplate">
+        <span class="muted small">Voorbeeld: <b id="namePreview"></b></span></label>
+    </section>
+
+    <section class="card group">
+      <h2><span data-icon="download"></span>Bewaren</h2>
+      <label class="row"><div class="grow"><b>Bewaren in "Mijn opnames"</b>
+          <p class="muted small">Herbeluisteren, hernoemen en later downloaden vanuit de extensie.</p></div>
+        <span class="switch"><input type="checkbox" name="saveToLibrary"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Meteen downloaden</b>
+          <p class="muted small">Naar je map Downloads, zodra de opname klaar is.</p></div>
+        <span class="switch"><input type="checkbox" name="autoDownload"><span></span></span></label>
+      <label class="row"><div class="grow"><b>Vragen waar het bestand moet komen</b></div>
+        <span class="switch"><input type="checkbox" name="askWhereToSave"><span></span></span></label>
+    </section>
+
+    <section class="card group">
+      <h2><span data-icon="keyboard"></span>Sneltoets</h2>
+      <div class="row"><div class="grow"><b>Opname starten of stoppen</b>
+          <p class="muted small" id="shortcut"></p></div>
+        <button type="button" class="btn" id="shortcuts">Wijzigen</button></div>
+    </section>
+
+    <p class="muted small center">Sound Recorder gebruikt <a href="https://github.com/zhuker/lamejs" target="_blank">lamejs</a> (LAME, LGPL) voor de mp3-codering.
+      Beveiligde video's (DRM) worden niet gedownload, enkel opgenomen zoals je ze afspeelt.</p>
+  </form>
+</div>
+<div class="toast" id="toast" role="status"><span data-icon="check"></span>Opgeslagen</div>
 <script src="settings.js"></script>
-<script src="gemini.js"></script>
+<script src="icons.js"></script>
 <script src="options.js"></script>
+</body>
 </html>

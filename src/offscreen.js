@@ -1,165 +1,128 @@
-// Het offscreen-document doet het zware werk: opnemen, mp3 maken en Gemini aanroepen.
-// Het heeft enkel toegang tot chrome.runtime, dus de instellingen komen mee met de berichten.
+// Het offscreen-document doet het zware werk: opnemen, media downloaden, nabewerken,
+// omzetten naar mp3/wav en bewaren. Het heeft enkel chrome.runtime, dus instellingen
+// en paginagegevens komen mee met de berichten.
 
-// Gemini krijgt altijd een compacte spraakversie, zodat ook lange opnames onder de
-// limiet van 20 MB voor inline audio blijven, los van de kwaliteit van de download.
-const GEMINI_AUDIO = { sampleRate: 16000, bitrate: 32, stereo: false };
-
-let recorder;
-let chunks = [];
-let playback;
-let autoStopTimer;
+let rec = null;
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.target !== 'offscreen') return;
-  if (msg.type === 'start') start(msg.streamId, msg.settings).catch(fail);
-  else if (msg.type === 'stop') stop(msg.settings);
+  if (msg.type === 'start') startRecording(msg).catch(fail);
+  else if (msg.type === 'stop') stopRecording();
+  else if (msg.type === 'pause') rec?.recorder.state === 'recording' && rec.recorder.pause();
+  else if (msg.type === 'resume') rec?.recorder.state === 'paused' && rec.recorder.resume();
+  else if (msg.type === 'rip') rip(msg).catch(fail);
 });
 
-async function start(streamId, settings) {
+async function startRecording({ streamId, settings, meta }) {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: streamId } }
   });
-  // Chrome dempt een opgenomen tabblad; we sturen het geluid terug naar de luidsprekers
-  // tenzij de gebruiker het tabblad stil wil tijdens de opname.
-  if (!settings.muteTab) {
-    playback = new AudioContext();
-    playback.createMediaStreamSource(stream).connect(playback.destination);
-  }
+  const ctx = new AudioContext();
+  const source = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+  // Chrome dempt een opgenomen tabblad; we sturen het geluid terug naar de luidsprekers,
+  // behalve als de gebruiker het stil wil of als het versneld (en dus vervormd) speelt.
+  if (!settings.muteTab && meta.speed === 1) source.connect(ctx.destination);
 
-  chunks = [];
-  recorder = new MediaRecorder(stream, { mimeType: 'audio/webm', audioBitsPerSecond: 256000 });
-  recorder.ondataavailable = (e) => chunks.push(e.data);
+  const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 256000 });
+  const chunks = [];
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   recorder.start(1000);
 
-  if (settings.autoStopMinutes > 0) {
-    autoStopTimer = setTimeout(() => {
-      chrome.runtime.sendMessage({ target: 'background', type: 'autostop' });
-    }, settings.autoStopMinutes * 60000);
-  }
+  const samples = new Float32Array(analyser.fftSize);
+  const levelTimer = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    let peak = 0;
+    for (const s of samples) peak = Math.max(peak, Math.abs(s));
+    send({ target: 'popup', type: 'level', value: recorder.state === 'paused' ? 0 : peak });
+  }, 100);
+
+  rec = { recorder, stream, ctx, chunks, levelTimer, settings, meta };
 }
 
-function stop(settings) {
-  clearTimeout(autoStopTimer);
-  if (!recorder || recorder.state === 'inactive') return;
-  recorder.onstop = () => {
-    recorder.stream.getTracks().forEach((t) => t.stop());
-    playback?.close();
-    playback = null;
-    process(new Blob(chunks, { type: 'audio/webm' }), settings).catch(fail);
-  };
-  recorder.stop();
-}
-
-async function process(webm, settings) {
-  status('mp3 maken…');
-  const decoded = await new AudioContext().decodeAudioData(await webm.arrayBuffer());
-
-  if (settings.downloadMp3) {
-    const mp3 = await toMp3(decoded, settings);
-    chrome.runtime.sendMessage({ target: 'background', type: 'mp3', url: URL.createObjectURL(mp3) });
-  }
-
-  if (!settings.geminiApiKey) throw new Error('Geen Gemini API-sleutel ingesteld (zie Opties).');
-  status('Gemini maakt de vragen…');
-  const quiz = await askGemini(await toMp3(decoded, GEMINI_AUDIO), settings);
-  quiz.klas = settings.grade;
-  chrome.runtime.sendMessage({ target: 'background', type: 'quiz', quiz });
-}
-
-async function toMp3(decoded, { sampleRate, bitrate, stereo }) {
-  const channels = stereo && decoded.numberOfChannels > 1 ? 2 : 1;
-  const offline = new OfflineAudioContext(channels, Math.ceil(decoded.duration * sampleRate), sampleRate);
-  const src = offline.createBufferSource();
-  src.buffer = decoded;
-  src.connect(offline.destination);
-  src.start();
-  const rendered = await offline.startRendering();
-  const pcm = Array.from({ length: channels }, (_, c) => toInt16(rendered.getChannelData(c)));
-
-  const encoder = new lamejs.Mp3Encoder(channels, sampleRate, bitrate);
-  const parts = [];
-  for (let i = 0; i < pcm[0].length; i += 1152) {
-    const frame = pcm.map((ch) => ch.subarray(i, i + 1152));
-    const buf = encoder.encodeBuffer(...frame);
-    if (buf.length) parts.push(buf);
-  }
-  parts.push(encoder.flush());
-  return new Blob(parts, { type: 'audio/mpeg' });
-}
-
-function toInt16(samples) {
-  const pcm = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    pcm[i] = Math.max(-1, Math.min(1, samples[i])) * 0x7fff;
-  }
-  return pcm;
-}
-
-const prompt = ({ numQuestions, grade }) => `Je krijgt de audio van een aflevering van Karrewiet, het jeugdjournaal van Ketnet/VRT.
-Maak een quiz voor leerlingen van het ${grade}de leerjaar met precies ${numQuestions} meerkeuzevragen over deze aflevering.
-
-Regels:
-- Vraag 1 is altijd "Wie presenteert deze aflevering van Karrewiet?" met de opties Jensen, Jelle, Maurane, Aïda.
-- Als het weerbericht een temperatuur voor morgen noemt, is de laatste vraag "Hoeveel graden wordt het morgen volgens het weerbericht?".
-- De andere vragen volgen de nieuwsitems in volgorde van de uitzending.
-- Elke vraag heeft precies 4 korte, geloofwaardige antwoordopties; precies één is juist en moet letterlijk uit de audio blijken.
-- Schrijf in eenvoudig, correct Nederlands (Vlaams), zonder letters A) B) voor de opties.
-- Vul "datum" in (bv. "donderdag 15 oktober") als die in de aflevering genoemd wordt, anders laat je hem leeg.`;
-
-const SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    datum: { type: 'STRING' },
-    vragen: {
-      type: 'ARRAY',
-      items: {
-        type: 'OBJECT',
-        properties: {
-          vraag: { type: 'STRING' },
-          opties: { type: 'ARRAY', items: { type: 'STRING' } },
-          juist: { type: 'INTEGER', description: 'Index (0-3) van het juiste antwoord in opties' }
-        },
-        required: ['vraag', 'opties', 'juist']
-      }
+function stopRecording() {
+  if (!rec) return;
+  const { recorder, stream, ctx, chunks, levelTimer, settings, meta } = rec;
+  rec = null;
+  clearInterval(levelTimer);
+  recorder.onstop = async () => {
+    stream.getTracks().forEach((t) => t.stop());
+    ctx.close();
+    try {
+      if (!chunks.length) throw new Error('Er werd geen geluid opgenomen.');
+      status('Opname verwerken…', null);
+      const webm = new Blob(chunks, { type: 'audio/webm' });
+      const decoded = await decode(await webm.arrayBuffer());
+      await finish(decoded, settings, { ...meta, source: 'opname' }, meta.speed);
+    } catch (err) {
+      fail(err);
     }
-  },
-  required: ['vragen']
-};
-
-async function askGemini(mp3, settings) {
-  const payload = {
-    contents: [{
-      parts: [
-        { inline_data: { mime_type: 'audio/mp3', data: await toBase64(mp3) } },
-        { text: prompt(settings) }
-      ]
-    }],
-    generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA }
   };
+  recorder.state === 'inactive' ? recorder.onstop() : recorder.stop();
+}
+
+async function rip({ item, settings, meta }) {
+  status('Media downloaden…', 0);
+  const bytes = await downloadMedia(item, (fraction, received) => {
+    if (fraction == null) status(`Media downloaden… ${formatSize(received)}`, null);
+    else status('Media downloaden…', fraction * 0.6);
+  });
+  status('Audio uit de media halen…', 0.6);
+  let decoded;
   try {
-    const { text, model } = await generateWithFallback(settings.geminiApiKey, settings.geminiModel, payload);
-    if (model !== settings.geminiModel) {
-      chrome.runtime.sendMessage({ target: 'background', type: 'model', model });
-    }
-    return JSON.parse(text);
-  } catch (err) {
-    throw new Error(`Gemini: ${err.message}`);
+    decoded = await decode(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  } catch {
+    throw new Error('Chrome kan de audio uit dit bestand niet lezen (onbekend formaat of geen geluidsspoor).');
+  }
+  await finish(decoded, settings, { ...meta, source: 'media', mediaUrl: item.url }, 1, 0.65);
+}
+
+async function decode(arrayBuffer) {
+  const ctx = new AudioContext();
+  try {
+    return await ctx.decodeAudioData(arrayBuffer);
+  } finally {
+    ctx.close();
   }
 }
 
-function toBase64(blob) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.readAsDataURL(blob);
+async function finish(decoded, settings, meta, slowdown, progressStart = 0) {
+  const label = settings.format === 'wav' ? 'wav' : 'mp3';
+  status(`${label} maken…`, progressStart);
+  const { blob, duration, ext } = await processAudio(decoded, settings, {
+    slowdown,
+    onProgress: (f) => status(`${label} maken…`, progressStart + f * (1 - progressStart))
+  });
+  const name = buildFileName(settings.fileNameTemplate, meta);
+  const fileName = `${name}.${ext}`;
+
+  let id = null;
+  if (settings.saveToLibrary) {
+    id = await recordingsDb.add({
+      name, fileName, blob, duration, size: blob.size, format: ext,
+      created: Date.now(), source: meta.source, pageTitle: meta.title, pageUrl: meta.url
+    });
+  }
+  const url = URL.createObjectURL(blob);
+  setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+  send({
+    target: 'background', type: 'done',
+    result: { id, name, fileName, duration, size: blob.size },
+    download: settings.autoDownload ? { url, filename: fileName, saveAs: settings.askWhereToSave } : null
   });
 }
 
-function status(text) {
-  chrome.runtime.sendMessage({ target: 'background', type: 'status', text });
+function send(msg) {
+  chrome.runtime.sendMessage(msg).catch(() => {});
+}
+
+function status(text, progress) {
+  send({ target: 'background', type: 'status', text, progress });
 }
 
 function fail(err) {
-  chrome.runtime.sendMessage({ target: 'background', type: 'error', text: err.message });
+  console.error(err);
+  send({ target: 'background', type: 'error', text: err?.message || String(err) });
 }
