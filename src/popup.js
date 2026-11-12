@@ -139,13 +139,16 @@ async function renderMessage(state) {
   if (shownResultAt === r.at) return;
   shownResultAt = r.at;
   box.innerHTML = `<div class="notice ok">${icon('check')}<div style="flex:1;min-width:0">
-      Opgeslagen: <b>${escapeHtml(r.fileName)}</b>
-      <span class="muted">(${formatDuration(r.duration)}, ${formatSize(r.size)})</span>
+      ${r.video ? 'Video gedownload' : 'Opgeslagen'}: <b>${escapeHtml(r.fileName)}</b>
+      <span class="muted">(${r.duration ? `${formatDuration(r.duration)}, ` : ''}${formatSize(r.size)})</span>
+      ${r.note ? `<div class="small">${escapeHtml(r.note)}</div>` : ''}
       ${r.id != null ? '<audio controls preload="metadata"></audio>' : ''}
       <div class="actions">
         ${r.id != null ? `<button class="btn" id="dlLast">${icon('download')}Downloaden</button>` : ''}
-        <a class="btn" href="library.html" target="_blank">${icon('library')}Mijn opnames</a>
+        ${r.video ? `<button class="btn" id="showDl">${icon('download')}Toon in Downloads</button>`
+          : `<a class="btn" href="library.html" target="_blank">${icon('library')}Mijn opnames</a>`}
       </div></div></div>`;
+  $('showDl')?.addEventListener('click', () => chrome.tabs.create({ url: 'chrome://downloads' }));
   if (r.id != null) {
     const saved = await recordingsDbGet(r.id);
     if (!saved) return;
@@ -257,25 +260,44 @@ function renderMediaList(items) {
         <div class="meta"><span class="badge">${KIND_LABEL[item.kind]}</span><span class="extra"></span></div>
       </div>
       <div class="buttons">
-        <button class="btn primary rip" title="Audio eruit halen en bewaren">${icon('download')}${settings.format === 'wav' ? 'wav' : 'mp3'}</button>
-        ${item.kind === 'file' ? `<button class="btn icon-only original" title="Origineel bestand downloaden">${icon('file')}</button>` : ''}
+        <button class="btn primary rip" title="Enkel het geluid eruit halen en bewaren">${icon('music')}${settings.format === 'wav' ? 'wav' : 'mp3'}</button>
+        ${isVideo(item)
+          ? `<button class="btn video" title="Video downloaden (beste kwaliteit, met geluid)">${icon('video')}Video</button>`
+          : `<button class="btn icon-only original" title="Origineel bestand downloaden">${icon('file')}</button>`}
       </div>`;
     const extra = li.querySelector('.extra');
     const ripButton = li.querySelector('.rip');
+    const videoButton = li.querySelector('.video');
     const badges = [];
     if (item.size && item.kind === 'file') badges.push(`<span class="badge">${formatSize(item.size)}</span>`);
     if (item.duration) badges.push(`<span class="badge">${formatDuration(item.duration)}</span>`);
     extra.outerHTML = badges.join('');
 
-    ripButton.onclick = () => startRip(item, false);
-    li.querySelector('.original')?.addEventListener('click', () => startRip(item, true));
+    ripButton.onclick = () => startRip(item, 'audio');
+    videoButton?.addEventListener('click', () => startRip(item, 'video'));
+    li.querySelector('.original')?.addEventListener('click', () => startRip(item, 'original'));
     list.append(li);
 
-    if (item.kind !== 'file') showInspection(item, li, ripButton);
+    if (item.kind !== 'file') showInspection(item, li, [ripButton, videoButton]);
   }
 }
 
-async function showInspection(item, li, ripButton) {
+// Streams zijn (bijna) altijd video; bij bestanden kijken we naar het type of de extensie
+function isVideo(item) {
+  if (item.kind !== 'file') return true;
+  if (/^(video|audio)\b/.test(item.mime || '')) return item.mime.startsWith('video');
+  return !/\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)(\?|$)/i.test(item.url);
+}
+
+function disableAll(buttons, title) {
+  for (const b of buttons) {
+    if (!b) continue;
+    b.disabled = true;
+    b.title = title;
+  }
+}
+
+async function showInspection(item, li, buttons) {
   if (!inspected.has(item.url)) {
     inspected.set(item.url, inspectMedia(item).then((info) => ({ ...info, ok: true }), (err) => ({
       ok: false, protected: err instanceof ProtectedMediaError, message: err.message
@@ -287,25 +309,24 @@ async function showInspection(item, li, ripButton) {
     li.classList.add('protected');
     li.querySelector('.kind').innerHTML = icon('lock');
     meta.insertAdjacentHTML('beforeend', `<span class="badge warn">${icon('lock')}Beveiligd</span>`);
-    ripButton.disabled = true;
-    ripButton.title = 'Beveiligd met DRM: gebruik Opnemen';
+    disableAll(buttons, 'Beveiligd met DRM: gebruik Opnemen');
     $('drmNotice').classList.remove('hidden');
   } else if (!info.ok) {
     meta.insertAdjacentHTML('beforeend', `<span class="badge warn" title="${escapeHtml(info.message)}">Niet leesbaar</span>`);
   } else {
     if (info.live) {
       meta.insertAdjacentHTML('beforeend', '<span class="badge warn">Live</span>');
-      ripButton.disabled = true;
-      ripButton.title = 'Livestream: gebruik Opnemen';
+      disableAll(buttons, 'Livestream: gebruik Opnemen');
     }
     if (info.duration) meta.insertAdjacentHTML('beforeend', `<span class="badge">${formatDuration(info.duration)}</span>`);
     if (!info.live) meta.insertAdjacentHTML('beforeend', `<span class="badge ok">${icon('check')}Downloadbaar</span>`);
   }
 }
 
-async function startRip(item, original) {
-  const res = await send('rip', { item, tabId, original });
-  if (res?.ok && !original) showTab('record');
+async function startRip(item, mode) {
+  const res = await send('rip', { item, tabId, mode });
+  // Een los bestand gaat meteen naar Downloads; al de rest toont zijn voortgang bij Opnemen
+  if (res?.ok && !(mode === 'original' || (mode === 'video' && item.kind === 'file'))) showTab('record');
 }
 
 $('rescan').onclick = () => {
