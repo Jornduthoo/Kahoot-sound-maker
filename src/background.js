@@ -114,14 +114,15 @@ async function resumeRecording() {
 
 // ---------- Media rechtstreeks ophalen ----------
 
-async function rip(item, tabId, original) {
+// mode: 'audio' (geluid eruit halen), 'video' (video downloaden) of 'original' (bestand zoals het is)
+async function rip(item, tabId, mode) {
   const st = await getState();
   if (st.state !== 'idle') throw new Error('Wacht tot de huidige opname of download klaar is.');
   const settings = await loadSettings();
   const tab = await chrome.tabs.get(tabId).catch(() => ({}));
   const meta = { title: item.title || tab.title || '', url: tab.url || item.url };
 
-  if (original) {
+  if (mode === 'original' || (mode === 'video' && item.kind === 'file')) {
     const ext = (new URL(item.url).pathname.match(/\.(\w{2,4})$/) || [])[1] || 'mp4';
     await chrome.downloads.download({
       url: item.url,
@@ -131,8 +132,9 @@ async function rip(item, tabId, original) {
     return;
   }
   await ensureOffscreen();
-  await setState({ state: 'processing', statusText: 'Media downloaden…', progress: 0, error: null, tabId });
-  await toOffscreen({ type: 'rip', item, settings, meta });
+  const video = mode === 'video';
+  await setState({ state: 'processing', statusText: video ? 'Video downloaden…' : 'Media downloaden…', progress: 0, error: null, tabId });
+  await toOffscreen({ type: video ? 'rip-video' : 'rip', item, settings, meta });
 }
 
 // ---------- Berichten ----------
@@ -154,7 +156,7 @@ async function handle(msg, sender) {
     case 'stop': return stopRecording();
     case 'pause': return pauseRecording();
     case 'resume': return resumeRecording();
-    case 'rip': return rip(msg.item, msg.tabId, msg.original);
+    case 'rip': return rip(msg.item, msg.tabId, msg.mode ?? (msg.original ? 'original' : 'audio'));
     case 'media-ended': {
       const st = await getState();
       if (st.state === 'recording' && sender.tab?.id === st.tabId && Date.now() - st.startedAt > 5000) {

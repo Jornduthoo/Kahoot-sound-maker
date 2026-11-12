@@ -3,7 +3,7 @@
 Chrome-extensie (Manifest V3) om geluid van websites te bewaren als **mp3** of **wav**, op twee manieren:
 
 1. **Opnemen**: neemt het geluid van het huidige tabblad op terwijl het speelt. Werkt overal, ook bij beveiligde video's zoals VRT MAX.
-2. **Media op pagina**: haalt de audio rechtstreeks uit video's en audio op de pagina, zonder af te spelen. Werkt voor gewone bestanden (mp3, mp4, …) en onbeveiligde streams (HLS `.m3u8`, DASH `.mpd`). Beveiligde media (DRM of versleuteld) wordt herkend en niet gedownload.
+2. **Media op pagina**: haalt de audio (of de hele video) rechtstreeks uit video's en audio op de pagina, zonder af te spelen. Werkt voor gewone bestanden (mp3, mp4, …) en onbeveiligde streams (HLS `.m3u8`, DASH `.mpd`). Beveiligde media (DRM of versleuteld) wordt herkend en niet gedownload.
 
 ## Installeren (ontwikkelmodus)
 
@@ -33,7 +33,8 @@ Klaar? Dan wordt het bestand gedownload en bewaard in **Mijn opnames** (icoon re
 Het tabblad **Media op pagina** toont wat de pagina laadt: losse audio-/videobestanden en streaming-playlists. Speel de video even af als de lijst leeg is. Per item:
 
 - **mp3** (of wav): downloadt het, haalt het geluid eruit en bewaart het zoals een opname;
-- **bestand-icoon**: downloadt het originele bestand (enkel bij losse bestanden).
+- **Video**: downloadt de video in de beste kwaliteit, met geluid. Losse bestanden gaan rechtstreeks naar Downloads. Bij streams worden de stukjes opgehaald en samengevoegd: fMP4-streams (DASH en moderne HLS) worden één `.mp4`, ook als beeld en geluid apart zitten; oudere HLS-streams worden een `.ts` (speelt in VLC en de Windows-mediaspeler);
+- **bestand-icoon**: bij losse audiobestanden het originele bestand.
 
 Items met **Beveiligd** (DRM of AES-versleuteling) of **Live** kunnen niet rechtstreeks; gebruik dan **Opnemen**.
 
@@ -54,6 +55,7 @@ Formaat (mp3/wav), mp3-kwaliteit (48–320 kbps), stereo/mono, stilte wegknippen
 | `src/offscreen.js` | Opnemen (`MediaRecorder`), niveaumeter, media downloaden en verwerken |
 | `src/audio.js` | Terugdraaien van versnelde opnames, stilte knippen, normaliseren, mp3/wav maken |
 | `src/media.js` | Bestanden, HLS (TS/fMP4/AAC) en DASH downloaden; herkent beveiliging en livestreams |
+| `src/video.js` | Video van HLS/DASH downloaden en losse beeld- en geluidssporen samenvoegen tot één mp4 |
 | `src/db.js` | "Mijn opnames" in IndexedDB |
 | `src/popup.*` | Popup met Opnemen en Media op pagina |
 | `src/library.*` | Mijn opnames |

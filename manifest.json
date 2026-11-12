@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sound Recorder",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Neem het geluid van een tabblad op, of haal de audio rechtstreeks uit video's en audio op een pagina. Als mp3 of wav.",
   "permissions": ["tabCapture", "offscreen", "storage", "unlimitedStorage", "downloads", "scripting", "activeTab", "webRequest", "alarms"],
   "host_permissions": ["<all_urls>"],

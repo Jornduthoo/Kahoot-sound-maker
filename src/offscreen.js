@@ -11,6 +11,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   else if (msg.type === 'pause') rec?.recorder.state === 'recording' && rec.recorder.pause();
   else if (msg.type === 'resume') rec?.recorder.state === 'paused' && rec.recorder.resume();
   else if (msg.type === 'rip') rip(msg).catch(fail);
+  else if (msg.type === 'rip-video') ripVideo(msg).catch(fail);
 });
 
 async function startRecording({ streamId, settings, meta }) {
@@ -77,6 +78,20 @@ async function rip({ item, settings, meta }) {
     throw new Error('Chrome kan de audio uit dit bestand niet lezen (onbekend formaat of geen geluidsspoor).');
   }
   await finish(decoded, settings, { ...meta, source: 'media', mediaUrl: item.url }, 1, 0.65);
+}
+
+async function ripVideo({ item, settings, meta }) {
+  status('Video downloaden…', 0);
+  const { blob, ext, note } = await downloadVideo(item, (f) => status('Video downloaden…', f * 0.95));
+  status('Video opslaan…', 1);
+  const fileName = `${buildFileName(settings.fileNameTemplate, meta)}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
+  send({
+    target: 'background', type: 'done',
+    result: { id: null, video: true, name: fileName, fileName, size: blob.size, note },
+    download: { url, filename: fileName, saveAs: settings.askWhereToSave }
+  });
 }
 
 async function decode(arrayBuffer) {

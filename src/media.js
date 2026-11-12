@@ -189,7 +189,10 @@ function dashSegmentUrls(mpd, period, set, rep, mpdUrl) {
   if (template) {
     const attr = (name, fallback) => template.getAttribute(name) ?? fallback;
     const init = attr('initialization');
-    if (init) urls.push(new URL(fillTemplate(init, rep, 0, 0), base).href);
+    if (init) {
+      urls.push(new URL(fillTemplate(init, rep, 0, 0), base).href);
+      urls.hasInit = true;
+    }
     const media = attr('media');
     const timescale = Number(attr('timescale', 1));
     let number = Number(attr('startNumber', 1));
@@ -214,7 +217,10 @@ function dashSegmentUrls(mpd, period, set, rep, mpdUrl) {
     }
   } else if (list) {
     const init = childrenByName(list, 'Initialization')[0];
-    if (init?.getAttribute('sourceURL')) urls.push(new URL(init.getAttribute('sourceURL'), base).href);
+    if (init?.getAttribute('sourceURL')) {
+      urls.push(new URL(init.getAttribute('sourceURL'), base).href);
+      urls.hasInit = true;
+    }
     for (const seg of childrenByName(list, 'SegmentURL')) urls.push(new URL(seg.getAttribute('media'), base).href);
   } else {
     urls.push(base); // één bestand per spoor (SegmentBase)
