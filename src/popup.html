@@ -59,6 +59,19 @@
   </section>
 
   <section id="panel-media" class="hidden">
+    <div id="bingel" class="card bingel hidden">
+      <div class="bingel-head">
+        <div class="kind"><span data-icon="video"></span></div>
+        <div class="info">
+          <div class="name" id="bingelTitle">Bingel-bordboek</div>
+          <div class="muted small" id="bingelInfo">Filmpjes zoeken…</div>
+        </div>
+      </div>
+      <button class="btn primary wide" id="bingelAll" disabled><span data-icon="download"></span>Alle filmpjes downloaden</button>
+      <label class="quick-row small" id="bingelScopeRow"><span class="grow">Ook de andere werkschriften van dit boek</span>
+        <span class="switch"><input type="checkbox" id="bingelWholeBook"><span></span></span></label>
+      <details id="bingelDetails"><summary class="small">Toon de lijst</summary><ol id="bingelList" class="bingel-list small"></ol></details>
+    </div>
     <div id="drmNotice" class="notice hidden"><span data-icon="lock"></span>
       <div><b>Deze pagina gebruikt beveiligde video (DRM)</b>, zoals VRT MAX. Die video's kan je niet rechtstreeks
         downloaden. Gebruik <b>Opnemen</b>: met snelheid 2× is een aflevering van 10 minuten in 5 minuten binnen.</div>
@@ -80,6 +93,7 @@
 <script src="settings.js"></script>
 <script src="icons.js"></script>
 <script src="media.js"></script>
+<script src="bingel.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

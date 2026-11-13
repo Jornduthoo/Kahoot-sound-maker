@@ -137,6 +137,20 @@ async function rip(item, tabId, mode) {
   await toOffscreen({ type: video ? 'rip-video' : 'rip', item, settings, meta });
 }
 
+// Bingel: een hele reeks filmpjes. Chrome zet ze zelf in de rij in Downloads.
+async function bingelDownload(files = []) {
+  let started = 0;
+  for (const f of files) {
+    try {
+      await chrome.downloads.download({ url: f.url, filename: f.filename, conflictAction: 'uniquify', saveAs: false });
+      started++;
+    } catch (err) {
+      console.warn('Download mislukt', f.filename, err);
+    }
+  }
+  return started;
+}
+
 // ---------- Berichten ----------
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -157,6 +171,7 @@ async function handle(msg, sender) {
     case 'pause': return pauseRecording();
     case 'resume': return resumeRecording();
     case 'rip': return rip(msg.item, msg.tabId, msg.mode ?? (msg.original ? 'original' : 'audio'));
+    case 'bingel-download': return bingelDownload(msg.files);
     case 'media-ended': {
       const st = await getState();
       if (st.state === 'recording' && sender.tab?.id === st.tabId && Date.now() - st.startedAt > 5000) {

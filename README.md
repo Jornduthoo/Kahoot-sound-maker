@@ -38,6 +38,16 @@ Het tabblad **Media op pagina** toont wat de pagina laadt: losse audio-/videobes
 
 Items met **Beveiligd** (DRM of AES-versleuteling) of **Live** kunnen niet rechtstreeks; gebruik dan **Opnemen**.
 
+### Bingel-bordboeken: alle filmpjes in één keer
+
+Open een bordboek op `bordboeken.bingel.be` (aangemeld zoals altijd) en klik op het icoon van de extensie. Bovenaan **Media op pagina** staat dan een kaartje met alle filmpjes van het werkschrift dat open staat, zonder dat je ze eerst moet aanklikken.
+
+- **Alle filmpjes downloaden** zet ze allemaal in Downloads, in de map `Bingel/<boek>/<werkschrift>/`, genummerd in de volgorde van het boek (bv. `01 p. 7-8 - Getallen tot 1 miljard.mp4`).
+- Zet **Ook de andere werkschriften van dit boek** aan om de filmpjes van heel het boek te nemen.
+- Onder **Toon de lijst** zie je welke filmpjes het zijn. Filmpjes die via YouTube lopen, worden overgeslagen.
+
+De extensie gebruikt enkel wat de bordboek-site zelf toont aan een aangemelde leerkracht.
+
 ### VRT MAX / Karrewiet
 
 VRT MAX beveiligt zijn video's met DRM. De extensie omzeilt dat niet. Gebruik **Opnemen** met snelheid **2×**, **Video vanaf het begin** en **Stoppen als de video eindigt**: een aflevering van 10 minuten staat dan na ongeveer 5 minuten als normale mp3 klaar. Als de speler van VRT MAX het tempo terugzet, neemt de extensie gewoon op 1× op.
