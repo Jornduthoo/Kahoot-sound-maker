@@ -240,7 +240,7 @@ async function loadMedia(skipScan = false) {
   $('drmNotice').classList.toggle('hidden', !drm);
   $('mediaCount').textContent = items.length;
   $('mediaCount').classList.toggle('hidden', !items.length);
-  $('mediaEmpty').classList.toggle('hidden', items.length > 0);
+  $('mediaEmpty').classList.toggle('hidden', items.length > 0 || !!bingel);
   renderMediaList(items);
 }
 
@@ -332,6 +332,71 @@ async function startRip(item, mode) {
 $('rescan').onclick = () => {
   inspected.clear();
   loadMedia();
+  if (bingel) loadBingel();
+};
+
+// ---------- Bingel-bordboeken: alle filmpjes in één keer ----------
+
+let bingel = null;       // { book, subbook } uit het adres van het tabblad
+let bingelResult = null; // de gevonden filmpjes
+let bingelLoading = 0;
+
+async function loadBingel() {
+  const wholeBook = $('bingelWholeBook').checked || !bingel.subbook;
+  const run = ++bingelLoading;
+  bingelResult = null;
+  $('bingelAll').disabled = true;
+  $('bingelInfo').textContent = wholeBook ? 'Filmpjes zoeken in alle werkschriften…' : 'Filmpjes zoeken…';
+  $('bingelList').innerHTML = '';
+  let result;
+  try {
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: bingelCollectVideos,
+      args: [bingel.book, bingel.subbook, wholeBook ? 'book' : 'subbook']
+    });
+    if (res?.error) throw new Error(res.error.message || 'Er liep iets mis.');
+    result = res?.result;
+    if (!result) throw new Error('Geen antwoord van de Bingel-pagina. Herlaad de pagina en probeer opnieuw.');
+  } catch (err) {
+    if (run !== bingelLoading) return;
+    $('bingelInfo').textContent = err.message;
+    return;
+  }
+  if (run !== bingelLoading) return;
+  bingelResult = result;
+  const ok = result.videos.filter((v) => v.url);
+  $('bingelTitle').textContent = result.subbookTitle || result.bookTitle;
+  $('bingelInfo').textContent = !result.videos.length
+    ? (wholeBook ? 'Geen filmpjes gevonden in dit boek.' : 'Geen filmpjes in dit werkschrift. Zet de schakelaar aan om in heel het boek te zoeken.')
+    : `${ok.length} ${ok.length === 1 ? 'filmpje' : 'filmpjes'} gevonden${wholeBook ? ' in heel het boek' : ''}`
+      + (ok.length < result.videos.length ? ` (${result.videos.length - ok.length} kan niet, bv. YouTube)` : '');
+  $('bingelAll').disabled = !ok.length;
+  $('bingelAll').innerHTML = `${icon('download')}${ok.length > 1 ? `Alle ${ok.length} filmpjes downloaden` : 'Filmpje downloaden'}`;
+  const list = $('bingelList');
+  for (const v of result.videos) {
+    const li = document.createElement('li');
+    if (!v.url) li.className = 'skip';
+    li.innerHTML = `${escapeHtml(v.title)}<span class="muted">${escapeHtml([wholeBook ? v.subbook : '', v.page].filter(Boolean).join(', '))}${v.url ? '' : ` · ${escapeHtml(v.reason || '')}`}</span>`;
+    list.append(li);
+  }
+}
+
+$('bingelWholeBook').addEventListener('change', () => loadBingel());
+
+$('bingelAll').onclick = async () => {
+  if (!bingelResult) return;
+  const names = bingelFileNames(bingelResult);
+  const files = bingelResult.videos.map((v, i) => ({ url: v.url, filename: names[i] })).filter((f) => f.url);
+  $('bingelAll').disabled = true;
+  const res = await send('bingel-download', { files });
+  const started = res?.ok ? res.result : 0;
+  $('bingelInfo').textContent = started
+    ? `${started} ${started === 1 ? 'download' : 'downloads'} gestart. Je vindt ze in Downloads, map "Bingel".`
+    : `Downloaden lukte niet${res?.error ? `: ${res.error}` : ''}.`;
+  $('bingelAll').innerHTML = `${icon('download')}Toon in Downloads`;
+  $('bingelAll').disabled = false;
+  $('bingelAll').onclick = () => chrome.tabs.create({ url: 'chrome://downloads' });
 };
 
 // ---------- Start ----------
@@ -341,12 +406,19 @@ $('rescan').onclick = () => {
   const forced = Number(new URLSearchParams(location.search).get('tab'));
   const [tab] = forced ? [{ id: forced }] : await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id ?? null;
+  bingel = parseBingelUrl(forced ? (await chrome.tabs.get(forced).catch(() => ({}))).url : tab?.url);
   settings = await loadSettings();
   session = await chrome.storage.session.get(null);
   session.state ??= 'idle';
   renderSettings();
   render();
   loadMedia();
+  if (bingel) {
+    $('bingel').classList.remove('hidden');
+    $('bingelScopeRow').classList.toggle('hidden', !bingel.subbook);
+    showTab('media');
+    loadBingel();
+  }
   const commands = await chrome.commands.getAll();
   const shortcut = commands.find((c) => c.name === 'toggle-recording')?.shortcut;
   $('shortcut').textContent = shortcut ? `Sneltoets: ${shortcut}` : 'Geen sneltoets ingesteld';

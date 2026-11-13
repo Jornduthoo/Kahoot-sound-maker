@@ -76,3 +76,17 @@ main section > * + * { margin-top: 10px; }
 
 .foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
 .foot .icon { width: 14px; height: 14px; }
+
+.bingel { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.bingel-head { display: flex; gap: 10px; align-items: center; }
+.bingel-head .kind { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  background: var(--accent-soft); color: var(--accent); }
+.bingel-head .info { flex: 1; min-width: 0; }
+.bingel-head .name { font-weight: 600; }
+.bingel .wide { width: 100%; justify-content: center; }
+.bingel .quick-row { padding: 0; }
+.bingel summary { cursor: pointer; color: var(--muted); }
+.bingel-list { margin: 6px 0 0; padding-left: 22px; max-height: 180px; overflow: auto; }
+.bingel-list li { padding: 2px 0; }
+.bingel-list li.skip { color: var(--muted); text-decoration: line-through; }
+.bingel-list .muted { margin-left: 4px; }
